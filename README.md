@@ -1,5 +1,26 @@
 # Process Watcher — мониторинг аномалий процессов в Linux
 
+## Log
+```
+# Все логи proc_watcher
+journalctl -t proc_watcher
+
+# Только последние 20 строк
+journalctl -t proc_watcher -n 20
+
+# В реальном времени (следить за новыми)
+journalctl -t proc_watcher -f
+
+# Только предупреждения (уровень warning и выше)
+journalctl -t proc_watcher -p warning
+
+# За последние 5 минут
+journalctl -t proc_watcher --since "5 minutes ago"
+
+# Красивый вывод с цветом
+journalctl -t proc_watcher -o short-iso
+```
+
 ## Проблематика
 
 Пользователи Ubuntu сталкиваются с необъяснимыми тормозами и нагревом из-за «сбесившихся» процессов (утечки памяти, бесконечные циклы, процессы-зомби). Решения вроде `top`/`htop` требуют ручного вмешательства в терминал и не умеют проактивно оповещать.

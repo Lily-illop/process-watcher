@@ -6,12 +6,27 @@
 # ============================================
 
 # Конфиг (пока просто переменные)
-MAX_AGE_HOURS=9
+MAX_AGE_HOURS=8
 IGNORE_COMMS="systemd,kthreadd,rcu_sched"
+
+# === Логирование (обёртки над logger) ===
+LOG_TAG="proc_watcher"
+
+log_info() {
+    logger -t "$LOG_TAG" -p user.info "[info]: $1"
+}
+
+log_warn() {
+    logger -t "$LOG_TAG" -p user.warning "[warn]: $1"
+}
+
+log_error() {
+    logger -t "$LOG_TAG" -p user.err "[err]: $1"
+}
 
 # Заглушка для будущего конфига
 load_config() {
-	echo "[ЗАГЛУШКА] Здесь будет загрузка конфига из файла, пока предустановленно кол-во часов=$MAX_AGE_HOURS и игнор-лист=$IGNORE_COMMS"
+	log_info "[ЗАГЛУШКА] Здесь будет загрузка конфига из файла, пока предустановленно кол-во часов=$MAX_AGE_HOURS и игнор-лист=$IGNORE_COMMS"
 }
 
 # Заглушка для будущих уведомлений
@@ -20,8 +35,11 @@ send_notification() {
 	local pid="$2"
 	local age="$3"
 
-	# Пока просто эхо в консоль с понятным маркером
-	echo "🔔 [УВЕДОМЛЕНИЕ] Процесс $name (PID $pid) живёт ${age}ч (порог: ${MAX_AGE_HOURS}ч)"
+	log_warn "Процесс $name (PID $pid) живёт ${age}ч (порог: ${MAX_AGE_HOURS}ч)"
+	
+#	if [[ -n "$DISPLAY" ]] && command -v notify-send >/dev/null 2>&1; then
+#        notify-send -u normal "Proc Watcher" "$msg" 2>/dev/null || true
+#    fi
 }
 
 # Проверка, нужно ли игнорировать процесс
@@ -32,11 +50,11 @@ should_ignore() {
 
 # Основная проверка по времени жизни процессов
 check_processes() {
-    echo "Начало проверки.."
+	log_info "Начало проверки процессов"
     
     # Проверяем, существует ли команда ps
     if ! command -v ps &>/dev/null; then
-        echo "❌ Ошибка: команда 'ps' не найдена в системе" >&2
+        log_error "команда 'ps' не найдена в системе"
         return 1
     fi
     
@@ -58,7 +76,7 @@ check_processes() {
     
     # Проверка: если ps ничего не вернул (ошибка или нет процессов)
     if [[ -z "$ps_output" ]]; then
-        echo "❌ Ошибка: не удалось получить список процессов">&2
+        log_error "не удалось получить список процессов"
         return 1
     fi
     
@@ -86,8 +104,8 @@ check_processes() {
         
         # Проверяем, нужно ли игнорировать этот процесс
         if should_ignore "$comm"; then
-        	echo ""
-            continue  # пропускаем, пользователь не хочет видеть уведомления о нём
+        	log_info "$comm был проигнорирован"
+            continue  
         fi
         
         # === Парсим время жизни в секунды ===
@@ -125,7 +143,7 @@ check_processes() {
             age_sec=$((etime_str))
         
         else
-        	echo "⚠️ Предупреждение: неизвестный формат etime '$etime_str' — пропускаем процесс" >&2
+        	log_warn "неизвестный формат etime '$etime_str' — пропускаем процесс, может быть зомбаком"
             # Такое может случиться для процессов-зомби или с очень странным etime
             continue
         fi
@@ -144,20 +162,24 @@ check_processes() {
     done <<< "$ps_output"   # конец цикла while; here-string с данными ps
     
     # Итоговый отчёт
+    log_info "Проверка завершена."
     if [[ $count_anomaly -eq 0 ]]; then
-        # wc -l : подсчёт строк (word count, lines)
-        local process_count=$(echo "$ps_output" | wc -l)
-        echo "✅ Аномалий не обнаружено. Проверено процессов: $process_count"
+        log_info "✅ Аномалий не обнаружено."
+    else
+    	log_info "Найдено аномалий: $count_anomaly"
     fi
+    # wc -l : подсчёт строк (word count, lines)
+    local process_count=$(echo "$ps_output" | wc -l)
+    log_info " Проверено процессов: $process_count"
 }
 
 # Точка входа
 main() {
-    echo "=== Proc Watcher (простая версия) ==="
-    echo "Порог: ${MAX_AGE_HOURS} часов"
+    log_info "=== Proc Watcher ==="
+    log_info "Порог: ${MAX_AGE_HOURS} часов"
     load_config
     check_processes
-    echo "=== Готово ==="
+    log_info "=== Готово ==="
 }
 
 main
