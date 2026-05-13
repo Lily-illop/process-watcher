@@ -38,7 +38,7 @@ get_cpu_usage() {
     # Используем ps с выводом %cpu (уже готовый процент)
     # %cpu — это CPU usage за последние секунды (аналог top)
     # ps -eo pid,comm,%cpu --no-headers 2>/dev/null
-	ps -e -o pid,%cpu,comm --sort=-%cpu --no-headers 2>/dev/null | head -20
+	ps -e -o pid,%cpu,cmd,comm --sort=-%cpu --no-headers 2>/dev/null | head -20
 }
 
 # === Проверка одного процесса ===
@@ -83,11 +83,12 @@ check_all_processes() {
     while IFS= read -r line; do
         # Убираем пробелы в начале
         line=$(echo "$line" | sed 's/^[ \t]*//')
-
+echo $line
         local pid=$(echo "$line" | awk '{print $1}')
-        local comm=$(echo "$line" | awk '{print $3}')
         local cpu_percent=$(echo "$line" | awk '{print $2}')
-
+		# Берём всё, начиная с 3-го поля, и заменяем пробелы на _
+		local comm=$(echo "$line" | cut -d' ' -f4-)
+				
         # Проверяем валидность PID
         if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
         	log_info "неверный вывод pid=$pid"
