@@ -1,5 +1,13 @@
 # Process Watcher — мониторинг аномалий процессов в Linux
 
+##Запуск
+Для авто запуска на **Linux** можно прописать 
+```
+crontab -e
+# Добавить строку:
+*/15 * * * * /home/your_path_to/ProcWatch/proc_watcher.sh
+```
+
 ## Log
 ```
 # Все логи proc_watcher
@@ -19,6 +27,7 @@ journalctl -t proc_watcher --since "5 minutes ago"
 
 # Красивый вывод с цветом
 journalctl -t proc_watcher -o short-iso
+
 ```
 
 ## Проблематика
