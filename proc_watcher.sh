@@ -5,29 +5,18 @@
 # Пока умеет: проверять время жизни, выводить эхо-уведомления
 # ============================================
 
-# Конфиг (пока просто переменные)
-MAX_AGE_HOURS=8
-IGNORE_COMMS="systemd,kthreadd,rcu_sched"
+# Получаем путь к директории скрипта
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# === Логирование (обёртки над logger) ===
-LOG_TAG="proc_watcher"
+# Подключаем библиотеку и конфиг
+source "$SCRIPT_DIR/lib.sh"
+load_config "$SCRIPT_DIR/config.env"
 
-log_info() {
-    logger -t "$LOG_TAG" -p user.info "[info]: $1"
-}
+# === Настройки (с значениями по умолчанию) ===
+MAX_AGE_HOURS=${MAX_AGE_HOURS:-8}
+IGNORE_COMMS=${IGNORE_COMMS:-"systemd,kthreadd,rcu_sched"}
 
-log_warn() {
-    logger -t "$LOG_TAG" -p user.warning "[warn]: $1"
-}
 
-log_error() {
-    logger -t "$LOG_TAG" -p user.err "[err]: $1"
-}
-
-# Заглушка для будущего конфига
-load_config() {
-	log_info "[ЗАГЛУШКА] Здесь будет загрузка конфига из файла, пока предустановленно кол-во часов=$MAX_AGE_HOURS и игнор-лист=$IGNORE_COMMS"
-}
 
 # Заглушка для будущих уведомлений
 send_notification() {
