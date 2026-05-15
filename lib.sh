@@ -8,17 +8,21 @@ load_config() {
     local config_file="${1:-config.env}"
     if [[ -f "$config_file" ]]; then
         source "$config_file"
+        init_logging
         log_info "Конфиг загружен из $config_file"
     else
+    	init_logging
         log_warn "Файл с именем $config_file (конфиг) не найден, используются значения по умолчанию" >&2
     fi
 }
 
 # === Логирование ===
-# Если LOG_TAG не задан, используем имя скрипта
-if [[ -z "$LOG_TAG" ]]; then
-    LOG_TAG=$(basename "$0" .sh)
-fi
+init_logging(){
+	# Если LOG_TAG не задан, используем имя скрипта
+	if [[ -z "$LOG_TAG" ]]; then
+		LOG_TAG=$(basename "$0" .sh)
+	fi
+}
 
 log_info() {
     logger -t "$LOG_TAG" -p user.info "[info]: $1"
