@@ -5,32 +5,19 @@
 # Отслеживает процессы, потребляющие аномально много CPU
 # ============================================
 
-# === Конфигурация (позже вынести в файл) ===
-CPU_WARN_THRESHOLD=2     # первый порог (предупреждение) в %
-CPU_KILL_THRESHOLD=4      # второй порог (рекомендация убить) в %
-IGNORE_COMMS="systemd,kthreadd,rcu_sched,gnome-shell,gnome-terminal-server,Xorg"
+# Получаем путь к директории скрипта
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# === Логирование (обёртки над logger) ===
-LOG_TAG="proc_cpu_watcher"
+# Подключаем библиотеку и конфиг
+source "$SCRIPT_DIR/lib.sh"
+load_config "$SCRIPT_DIR/config.env"
 
-log_info() {
-    logger -t "$LOG_TAG" -p user.info "[info]: $1"
-}
+# === Настройки (с значениями по умолчанию) ===
+CPU_WARN_THRESHOLD=${CPU_WARN_THRESHOLD:-50} # первый порог (предупреждение) в %
+CPU_KILL_THRESHOLD=${CPU_KILL_THRESHOLD:-90} # второй порог (рекомендация убить) в %
+IGNORE_COMMS=${IGNORE_COMMS:-"systemd,kthreadd,rcu_sched,gnome-shell,gnome-terminal-server,Xorg"}
 
-log_warn() {
-    logger -t "$LOG_TAG" -p user.warning "[warn]: $1"
-}
-
-log_error() {
-    logger -t "$LOG_TAG" -p user.err "[err]: $1"
-}
-
-# === Проверка, нужно ли игнорировать процесс ===
-should_ignore() {
-    local comm="$1"
-    echo "$IGNORE_COMMS" | grep -q "$comm"
-    return $?
-}
+log_debug "Значения установленны. Первый порог $CPU_WARN_THRESHOLD. Второй порог $CPU_KILL_THRESHOLD. И игнор-лист: $IGNORE_COMMS"
 
 # === Получение нагрузки на CPU (аналог top) ===
 # Возвращает процент CPU для каждого процесса
@@ -51,7 +38,7 @@ check_process_cpu() {
     local cpu_int=${cpu_percent%.*}
     
     
-    log_info "проверяем процесс в $comm (PID $pid) потребляет ${cpu_percent}% CPU"
+    log_debug "проверяем процесс в $comm (PID $pid) потребляет ${cpu_percent}% CPU"
     
     # KILL порог — критично
     if [[ $cpu_int -ge $CPU_KILL_THRESHOLD ]]; then
@@ -91,18 +78,19 @@ echo $line
 				
         # Проверяем валидность PID
         if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
-        	log_info "неверный вывод pid=$pid"
+        	log_debug "неверный вывод pid=$pid в строке $line"
             continue
         fi
 
         # Игнорируем процессы с нулевой нагрузкой
         if (( $(echo "$cpu_percent < 1.0" | bc -l 2>/dev/null) )); then
+            log_debug "игнорируем $cpu_percent < 1.0 в процессе $line "
             continue
         fi
         
         # Игнорируем системные процессы
         if should_ignore "$comm"; then
-        	log_info "процесс $comm с cpu=$cpu_percent% проигнорирован как помеченный в игнор-листе"
+        	log_debug "процесс $comm с cpu=$cpu_percent% проигнорирован как помеченный в игнор-листе"
             continue
         fi
 
@@ -115,4 +103,13 @@ echo $line
 
 }
 
-check_all_processes
+
+# Точка входа
+main() {
+    log_info "=== Proc Watcher CPU anomaly==="
+    log_info "Пороги: $CPU_WARN_THRESHOLD % -warn. $CPU_KILL_THRESHOLD % - error."
+    check_all_processes
+    log_info "=== Готово ==="
+}
+
+main

@@ -16,22 +16,9 @@ load_config "$SCRIPT_DIR/config.env"
 MAX_AGE_HOURS=${MAX_AGE_HOURS:-8}
 IGNORE_COMMS=${IGNORE_COMMS:-"systemd,kthreadd,rcu_sched"}
 
+log_debug "Значения установленны. Максимальное число часов $MAX_AGE_HOURS и игнор-лист: $IGNORE_COMMS"
 
 
-# Заглушка для будущих уведомлений
-send_notification() {
-	local name="$1"
-	local pid="$2"
-	local age="$3"
-
-	log_warn "Процесс $name (PID $pid) живёт ${age}ч (порог: ${MAX_AGE_HOURS}ч)"
-}
-
-# Проверка, нужно ли игнорировать процесс
-should_ignore() {
-    local name="$1"
-    echo "$IGNORE_COMMS" | grep -q "$name"
-}
 
 # Основная проверка по времени жизни процессов
 check_processes() {
@@ -77,19 +64,20 @@ check_processes() {
         # Убираем пробелы и табуляции в начале строки
         line=$(echo "$line" | sed 's/^[ \t]*//')
         
-        local pid=$(echo "$line" | awk '{print $1}')  # Извлекаем PID (первое поле до пробела), awk '{print $1}'  : берёт первое слово в строке
-        local comm=$(echo "$line" | awk '{print $2}')  # Извлекаем имя процесса (второе поле)
+        local pid=$(echo "$line" | awk '{print $1}')  
+        local comm=$(echo "$line" | awk '{print $2}')
         # Извлекаем время жизни (последнее поле) $NF - специальная переменная awk, означающая "Number of Fields", т.е. последнее поле в строке
         local etime_str=$(echo "$line" | awk '{print $NF}')
         
         # Проверяем, что PID состоит только из цифр
         if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
-            continue  # пропускаем строки, где PID не число (например, заголовки)
+            log_debug "неверный вывод pid=$pid в строке $line"
+            continue 
         fi
         
         # Проверяем, нужно ли игнорировать этот процесс
         if should_ignore "$comm"; then
-        	log_info "$comm был проигнорирован"
+        	log_debug "процесс $comm с etime=$etime_str проигнорирован как помеченный в игнор-листе"
             continue  
         fi
         
@@ -128,8 +116,7 @@ check_processes() {
             age_sec=$((etime_str))
         
         else
-        	log_warn "неизвестный формат etime '$etime_str' — пропускаем процесс, может быть зомбаком"
-            # Такое может случиться для процессов-зомби или с очень странным etime
+        	log_debug "неизвестный формат etime '$etime_str' — пропускаем процесс, может быть зомбаком"  # Такое может случиться для процессов-зомби или с очень странным etime
             continue
         fi
         
@@ -140,8 +127,8 @@ check_processes() {
         # bc -l : сравниваем дробные числа (bash сам не умеет)
         # || true : подстраховка на случай ошибки bc
         if (( $(echo "$age_hours > $MAX_AGE_HOURS" | bc -l 2>/dev/null || echo 0) )); then
-            send_notification "$comm" "$pid" "$age_hours"
-            count_anomaly=$((count_anomaly + 1))
+			log_warn "Процесс $comm (PID $pid) живёт ${age_hours}ч (порог: ${MAX_AGE_HOURS}ч)"
+            ((count_anomaly++))
         fi
         
     done <<< "$ps_output"   # конец цикла while; here-string с данными ps
@@ -160,9 +147,8 @@ check_processes() {
 
 # Точка входа
 main() {
-    log_info "=== Proc Watcher ==="
+    log_info "=== Proc Watcher TIMER==="
     log_info "Порог: ${MAX_AGE_HOURS} часов"
-    load_config
     check_processes
     log_info "=== Готово ==="
 }
