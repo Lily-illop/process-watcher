@@ -2,8 +2,8 @@
 
 # ============================================
 # proc_watcher.sh - простая проверка долгоживущих процессов
-# Пока умеет: проверять время жизни, выводить уведомления в лог journalctl
-# ============================================
+# Умеет: проверять время жизни, выводить уведомления в лог journalctl
+
 
 # Получаем путь к директории скрипта
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,10 +25,6 @@ send_notification() {
 	local age="$3"
 
 	log_warn "Процесс $name (PID $pid) живёт ${age}ч (порог: ${MAX_AGE_HOURS}ч)"
-	
-#	if [[ -n "$DISPLAY" ]] && command -v notify-send >/dev/null 2>&1; then
-#        notify-send -u normal "Proc Watcher" "$msg" 2>/dev/null || true
-#    fi
 }
 
 # Проверка, нужно ли игнорировать процесс
