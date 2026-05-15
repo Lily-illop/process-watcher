@@ -70,12 +70,12 @@ check_all_processes() {
     while IFS= read -r line; do
         # Убираем пробелы в начале
         line=$(echo "$line" | sed 's/^[ \t]*//')
-echo $line
+		log_debug "рабоатем со строкой на входе(после удаления пробеллов): $line"
         local pid=$(echo "$line" | awk '{print $1}')
         local cpu_percent=$(echo "$line" | awk '{print $2}')
 		# Берём всё, начиная с 3-го поля, и заменяем пробелы на _
 		local comm=$(echo "$line" | cut -d' ' -f4-)
-				
+		log_debug "парсинг имени процесса получаем $comm"	
         # Проверяем валидность PID
         if [[ ! "$pid" =~ ^[0-9]+$ ]]; then
         	log_debug "неверный вывод pid=$pid в строке $line"
